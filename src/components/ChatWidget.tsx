@@ -42,8 +42,12 @@ const ChatWidget: React.FC = () => {
 
     try {
       // Build chat history excluding the first welcome message
-      const chatHistory = messages
+      // Only take the latest 6 messages (3 from user, 3 from agent)
+      const recentMessages = messages
         .slice(1) // Remove the first welcome message
+        .slice(-6); // Take only the last 6 messages
+      
+      const chatHistory = recentMessages
         .map(msg => `${msg.isUser ? 'Học sinh' : 'Bạn'}: ${msg.text}`)
         .join('\n');
       
