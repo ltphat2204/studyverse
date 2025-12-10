@@ -14,6 +14,7 @@ const ChatWidget: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto scroll to bottom when messages change
   useEffect(() => {
@@ -21,6 +22,13 @@ const ChatWidget: React.FC = () => {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, loading]);
+
+  // Focus input after answer emerges (when loading becomes false and there are messages)
+  useEffect(() => {
+    if (!loading && messages.length > 1 && isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [loading, messages.length, isOpen]);
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,8 +49,11 @@ const ChatWidget: React.FC = () => {
       
       // Format the request message
       const formattedMessage = `Đây là câu hỏi của học sinh: "${currentQuestion}"
-Dưới đây là lịch sử trò chuyện trong phiên học tập:
-${chatHistory}`;
+
+Dưới đây là lịch sử trò chuyện trong phiên học tập (CHỈ để tham khảo ngữ cảnh, KHÔNG trả lời lại các câu hỏi cũ):
+${chatHistory}
+
+Lưu ý: Hãy tập trung trả lời câu hỏi hiện tại của học sinh: "${currentQuestion}". Lịch sử trên chỉ để hiểu ngữ cảnh cuộc trò chuyện, không phải để trả lời lại.`;
 
       const response = await axios.get(
         "https://script.google.com/macros/s/AKfycbwveizmxcCSjHsYqWwTgmc6y9XzVnsqOZ7MjY62dxc7LN7BwhYt2bSfSUiuDmDCC6MjFw/exec?message=" + encodeURIComponent(formattedMessage)
@@ -203,6 +214,7 @@ ${chatHistory}`;
           className="p-4 bg-white border-t-2 border-sky-100 flex items-center gap-3"
         >
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Hỏi tôi bất cứ điều gì... 💬"
