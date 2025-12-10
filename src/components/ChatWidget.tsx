@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaPaperPlane, FaTimes } from "react-icons/fa";
 import { BsChat } from "react-icons/bs";
@@ -13,44 +13,44 @@ const ChatWidget: React.FC = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Hàm chuyển đổi URL YouTube watch sang URL embed
-  const extractYouTubeEmbedUrl = (text: string) => {
-    const regex = /https:\/\/www\.youtube\.com\/watch\?v=([^&]+)(?:&t=(\d+)s)?/;
-    const match = text.match(regex);
-    if (match) {
-      const videoId = match[1];
-      const start = match[2] ? match[2] : "0";
-      return `https://www.youtube.com/embed/${videoId}?start=${start}`;
+  // Auto scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-    return null;
-  };
+  }, [messages, loading]);
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     const userMessage = { text: input, isUser: true };
     setMessages((prev) => [...prev, userMessage]);
+    
+    const currentQuestion = input;
     setInput("");
     setLoading(true);
 
     try {
+      // Build chat history excluding the first welcome message
+      const chatHistory = messages
+        .slice(1) // Remove the first welcome message
+        .map(msg => `${msg.isUser ? 'Học sinh' : 'Bạn'}: ${msg.text}`)
+        .join('\n');
+      
+      // Format the request message
+      const formattedMessage = `Đây là câu hỏi của học sinh: "${currentQuestion}"
+Dưới đây là lịch sử trò chuyện trong phiên học tập:
+${chatHistory}`;
+
       const response = await axios.get(
-        "https://script.google.com/macros/s/AKfycbwveizmxcCSjHsYqWwTgmc6y9XzVnsqOZ7MjY62dxc7LN7BwhYt2bSfSUiuDmDCC6MjFw/exec?message=" + input
+        "https://script.google.com/macros/s/AKfycbwveizmxcCSjHsYqWwTgmc6y9XzVnsqOZ7MjY62dxc7LN7BwhYt2bSfSUiuDmDCC6MjFw/exec?message=" + encodeURIComponent(formattedMessage)
       );
       const data = response.data;
       const answerMessage = { text: data.answer, isUser: false };
       
-      // Nếu câu hỏi chứa "why do" (không phân biệt chữ hoa chữ thường)
-      if (userMessage.text.toLowerCase().includes("why do")) {
-        const extraMessage = {
-          text: "Đây là video youtube để giải thích: https://www.youtube.com/watch?v=EGqpLug-sDk&t=6s",
-          isUser: false
-        };
-        setMessages((prev) => [...prev, answerMessage, extraMessage]);
-      } else {
-        setMessages((prev) => [...prev, answerMessage]);
-      }
+      setMessages((prev) => [...prev, answerMessage]);
     } catch (error) {
       setMessages((prev) => [
         ...prev,
@@ -155,23 +155,7 @@ const ChatWidget: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Nếu message của agent chứa URL YouTube, thì nhúng video */}
-                {!msg.isUser && msg.text.includes("youtube.com") ? (
-                  <div className="rounded-lg overflow-hidden mt-2">
-                    <iframe
-                      width="100%"
-                      height="200"
-                      src={extractYouTubeEmbedUrl(msg.text) || ""}
-                      title="YouTube video player"
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="rounded-lg"
-                    ></iframe>
-                  </div>
-                ) : (
-                  <p className="text-sm leading-relaxed">{msg.text}</p>
-                )}
+                <p className="text-sm leading-relaxed">{msg.text}</p>
                 
                 <div className={`text-xs mt-1 ${msg.isUser ? "text-sky-100" : "text-gray-400"}`}>
                   {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
@@ -210,6 +194,8 @@ const ChatWidget: React.FC = () => {
               </div>
             </motion.div>
           )}
+          {/* Invisible element for auto-scroll */}
+          <div ref={messagesEndRef} />
         </div>
         {/* Input area with enhanced styling */}
         <form
